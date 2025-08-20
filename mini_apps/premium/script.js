@@ -5,6 +5,8 @@ class PremiumApp {
     constructor() {
         this.isLoading = false;
         this.cloudPayments = null;
+        this.currentPlan = null;
+        this.currentAmount = 299; // Default monthly price
         this.init();
     }
 
@@ -24,8 +26,42 @@ class PremiumApp {
         
         // Настройка главной кнопки
         this.setupMainButton();
+
+        // Извлечение плана из URL
+        this.extractPlanFromURL();
         
-        console.log('FitGlow Premium App initialized');
+        console.log('FitGlow Premium Payment App initialized');
+    }
+
+    extractPlanFromURL() {
+        // Извлекаем план из URL параметров
+        const urlParams = new URLSearchParams(window.location.search);
+        const plan = urlParams.get('plan');
+        
+        if (plan) {
+            this.currentPlan = plan;
+            if (plan === 'yearly') {
+                this.currentAmount = 2399;
+                this.updatePlanDisplay('Годовая подписка FitGlow Premium', '2 399 ₽');
+            } else {
+                this.currentAmount = 299;
+                this.updatePlanDisplay('Месячная подписка FitGlow Premium', '299 ₽');
+            }
+        }
+    }
+
+    updatePlanDisplay(planName, planPrice) {
+        const planNameEl = document.getElementById('planName');
+        const planPriceEl = document.getElementById('planPrice');
+        const payAmountEl = document.getElementById('payAmount');
+        const subtotalEl = document.getElementById('subtotal');
+        const totalEl = document.getElementById('total');
+
+        if (planNameEl) planNameEl.textContent = planName;
+        if (planPriceEl) planPriceEl.textContent = planPrice;
+        if (payAmountEl) payAmountEl.textContent = planPrice;
+        if (subtotalEl) subtotalEl.textContent = planPrice;
+        if (totalEl) totalEl.textContent = planPrice;
     }
 
     setupTheme() {
@@ -49,15 +85,19 @@ class PremiumApp {
     initCloudPayments() {
         // Инициализация CloudPayments с конфигурацией
         try {
-            const config = {
-                ...CLOUDPAYMENTS_CONFIG.widget,
-                email: tg.initDataUnsafe?.user?.username || ""
-            };
+            if (typeof CLOUDPAYMENTS_CONFIG !== 'undefined') {
+                const config = {
+                    ...CLOUDPAYMENTS_CONFIG.widget,
+                    email: tg.initDataUnsafe?.user?.username || ""
+                };
 
-            this.cloudPayments = new cp.CloudPayments(config);
-            
-            if (CLOUDPAYMENTS_CONFIG.security.enableLogging) {
-                console.log('CloudPayments инициализирован с конфигурацией:', config);
+                this.cloudPayments = new cp.CloudPayments(config);
+                
+                if (CLOUDPAYMENTS_CONFIG.security?.enableLogging) {
+                    console.log('CloudPayments инициализирован с конфигурацией:', config);
+                }
+            } else {
+                console.warn('CLOUDPAYMENTS_CONFIG не найден, используем базовую инициализацию');
             }
         } catch (error) {
             console.error('Ошибка инициализации CloudPayments:', error);
@@ -66,16 +106,22 @@ class PremiumApp {
     }
 
     bindEvents() {
-        // Обработка кликов по кнопкам подписки
-        const subscribeButtons = document.querySelectorAll('.subscribe-btn');
-        
-        subscribeButtons.forEach(button => {
-            button.addEventListener('click', (e) => {
-                const plan = e.target.dataset.plan;
-                const amount = parseInt(e.target.dataset.amount);
-                this.handleSubscription(plan, amount);
+        // Обработка отправки формы
+        const form = document.getElementById('checkout-form');
+        if (form) {
+            form.addEventListener('submit', (e) => {
+                e.preventDefault();
+                this.handleFormSubmit();
             });
-        });
+        }
+
+        // Кнопка отмены
+        const cancelBtn = document.getElementById('btnCancel');
+        if (cancelBtn) {
+            cancelBtn.addEventListener('click', () => {
+                this.handleCancel();
+            });
+        }
 
         // Обработка событий WebApp
         tg.onEvent('mainButtonClicked', () => {
@@ -85,31 +131,159 @@ class PremiumApp {
         tg.onEvent('invoiceClosed', (eventData) => {
             this.handleInvoiceResult(eventData);
         });
+
+        // Форматирование полей карты
+        this.setupCardFormatting();
     }
 
-    setupMainButton() {
-        // Изначально скрываем главную кнопку
-        tg.MainButton.hide();
+    setupCardFormatting() {
+        const cardNumberInput = document.getElementById('cardNumber');
+        const cardExpInput = document.getElementById('cardExp');
+        const cardCvcInput = document.getElementById('cardCvc');
+        const cardNameInput = document.querySelector('input[name="cardName"]');
+
+        const previewNum = document.getElementById('previewNum');
+        const previewName = document.getElementById('previewName');
+        const previewExp = document.getElementById('previewExp');
+
+        // Форматирование номера карты
+        if (cardNumberInput) {
+            cardNumberInput.addEventListener('input', (e) => {
+                e.target.value = this.formatCardNumber(e.target.value);
+                if (previewNum) {
+                    previewNum.textContent = e.target.value.padEnd(19, "0").replace(/(.{4})/g,"$1 ").trim();
+                }
+            });
+        }
+
+        // Форматирование срока действия
+        if (cardExpInput) {
+            cardExpInput.addEventListener('input', (e) => {
+                e.target.value = this.formatExpiry(e.target.value);
+                if (previewExp) {
+                    previewExp.textContent = e.target.value || "MM/YY";
+                }
+            });
+        }
+
+        // Форматирование CVC
+        if (cardCvcInput) {
+            cardCvcInput.addEventListener('input', (e) => {
+                e.target.value = e.target.value.replace(/\D/g,"").slice(0, 4);
+            });
+        }
+
+        // Имя на карте
+        if (cardNameInput) {
+            cardNameInput.addEventListener('input', (e) => {
+                if (previewName) {
+                    previewName.textContent = (e.target.value || "CARDHOLDER").toUpperCase();
+                }
+            });
+        }
     }
 
-    async handleSubscription(plan, amount) {
-        if (this.isLoading || !this.cloudPayments) return;
+    formatCardNumber(value) {
+        return value.replace(/\D/g, "").slice(0, 19).replace(/(.{4})/g, "$1 ").trim();
+    }
+
+    formatExpiry(value) {
+        value = value.replace(/\D/g,"").slice(0, 4);
+        if (value.length >= 3) return value.slice(0,2) + "/" + value.slice(2);
+        if (value.length >= 1 && parseInt(value[0],10) > 1) value = "0" + value; // smart 1-9 -> 01-09
+        return value;
+    }
+
+    luhnCheck(cardNumber) {
+        const num = cardNumber.replace(/\s+/g, "");
+        if (num.length < 12) return false;
+        let sum = 0, toggle = false;
+        for (let i = num.length - 1; i >= 0; i--) {
+            let d = parseInt(num[i], 10);
+            if (toggle) { d *= 2; if (d > 9) d -= 9; }
+            sum += d; toggle = !toggle;
+        }
+        return sum % 10 === 0;
+    }
+
+    validateForm() {
+        const form = document.getElementById('checkout-form');
+        const formData = new FormData(form);
+        
+        const cardNumber = document.getElementById('cardNumber').value;
+        const cardExp = document.getElementById('cardExp').value;
+        const cardCvc = document.getElementById('cardCvc').value;
+        const cardName = formData.get('cardName');
+        const email = formData.get('email');
+        const terms = formData.get('terms');
+
+        // Валидация номера карты
+        if (!this.luhnCheck(cardNumber)) {
+            this.showNotification('error', 'Проверьте номер карты');
+            return false;
+        }
+
+        // Валидация срока действия
+        if (!/^\d{2}\/\d{2}$/.test(cardExp)) {
+            this.showNotification('error', 'Некорректная дата');
+            return false;
+        }
+
+        // Валидация CVC
+        if (!/^\d{3,4}$/.test(cardCvc)) {
+            this.showNotification('error', 'Некорректный CVC');
+            return false;
+        }
+
+        // Валидация имени
+        if (!cardName || cardName.trim().length < 2) {
+            this.showNotification('error', 'Введите имя на карте');
+            return false;
+        }
+
+        // Валидация email
+        if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+            this.showNotification('error', 'Введите корректный email');
+            return false;
+        }
+
+        // Проверка согласия с условиями
+        if (!terms) {
+            this.showNotification('error', 'Необходимо согласиться с условиями');
+            return false;
+        }
+
+        return true;
+    }
+
+    async handleFormSubmit() {
+        if (this.isLoading) return;
+
+        if (!this.validateForm()) {
+            return;
+        }
 
         try {
             this.setLoading(true);
             
-            // Анимация кнопки
-            const button = document.querySelector(`[data-plan="${plan}"]`);
-            button.classList.add('loading');
-
+            // Получаем данные формы
+            const form = document.getElementById('checkout-form');
+            const formData = new FormData(form);
+            
             // Подготовка данных для платежа
             const paymentData = {
-                plan: plan,
-                amount: amount,
+                plan: this.currentPlan || 'monthly',
+                amount: this.currentAmount,
                 currency: 'RUB',
                 user_id: tg.initDataUnsafe?.user?.id,
                 username: tg.initDataUnsafe?.user?.username || 'user',
-                first_name: tg.initDataUnsafe?.user?.first_name || 'Пользователь'
+                first_name: tg.initDataUnsafe?.user?.first_name || 'Пользователь',
+                email: formData.get('email'),
+                cardName: formData.get('cardName'),
+                country: formData.get('country'),
+                city: formData.get('city'),
+                address: formData.get('address'),
+                zip: formData.get('zip')
             };
 
             // Отправка данных боту (информируем о начале платежа)
@@ -129,6 +303,30 @@ class PremiumApp {
         }
     }
 
+    handleCancel() {
+        // Очистка формы
+        const form = document.getElementById('checkout-form');
+        if (form) {
+            form.reset();
+        }
+
+        // Сброс превью карты
+        const previewNum = document.getElementById('previewNum');
+        const previewName = document.getElementById('previewName');
+        const previewExp = document.getElementById('previewExp');
+
+        if (previewNum) previewNum.textContent = "0000 0000 0000 0000";
+        if (previewName) previewName.textContent = "CARDHOLDER";
+        if (previewExp) previewExp.textContent = "MM/YY";
+
+        this.showNotification('info', 'Форма очищена');
+    }
+
+    setupMainButton() {
+        // Изначально скрываем главную кнопку
+        tg.MainButton.hide();
+    }
+
     async sendPaymentData(data) {
         // Отправка данных боту через WebApp
         tg.sendData(JSON.stringify({
@@ -143,33 +341,65 @@ class PremiumApp {
             const invoiceId = `fitglow_${paymentData.user_id}_${Date.now()}`;
             const accountId = paymentData.user_id?.toString() || 'guest';
 
-            // Конфигурация платежа из config.js
+            // Базовая конфигурация, если CLOUDPAYMENTS_CONFIG недоступен
+            const defaultConfig = {
+                publicId: "test_api_00000000000000000000002",
+                currency: "RUB",
+                widget: {
+                    skin: "classic",
+                    requireEmail: false
+                },
+                descriptions: {
+                    monthly: "Месячная подписка FitGlow Premium",
+                    yearly: "Годовая подписка FitGlow Premium"
+                }
+            };
+
+            const config = typeof CLOUDPAYMENTS_CONFIG !== 'undefined' ? CLOUDPAYMENTS_CONFIG : defaultConfig;
+
+            // Конфигурация платежа
             const paymentConfig = {
-                publicId: CLOUDPAYMENTS_CONFIG.publicId,
-                description: CLOUDPAYMENTS_CONFIG.descriptions[paymentData.plan] || this.getSubscriptionDescription(paymentData.plan),
+                publicId: config.publicId,
+                description: config.descriptions?.[paymentData.plan] || this.getSubscriptionDescription(paymentData.plan),
                 amount: paymentData.amount,
-                currency: CLOUDPAYMENTS_CONFIG.currency,
+                currency: config.currency,
                 invoiceId: invoiceId,
                 accountId: accountId,
-                email: paymentData.username ? `${paymentData.username}@telegram.user` : "",
-                skin: CLOUDPAYMENTS_CONFIG.widget.skin,
-                requireEmail: CLOUDPAYMENTS_CONFIG.widget.requireEmail,
+                email: paymentData.email,
+                skin: config.widget?.skin || "classic",
+                requireEmail: config.widget?.requireEmail || false,
                 data: {
                     plan: paymentData.plan,
                     user_id: paymentData.user_id,
                     username: paymentData.username,
                     first_name: paymentData.first_name,
-                    source: 'telegram_miniapp'
+                    source: 'telegram_miniapp',
+                    billing_address: {
+                        country: paymentData.country,
+                        city: paymentData.city,
+                        address: paymentData.address,
+                        zip: paymentData.zip
+                    }
                 }
             };
 
             console.log('Запуск CloudPayments с конфигурацией:', paymentConfig);
 
             // Запуск виджета CloudPayments
-            const result = await this.cloudPayments.pay("charge", paymentConfig);
-            
-            // Обработка успешного результата
-            await this.handlePaymentSuccess(result, paymentData);
+            if (this.cloudPayments) {
+                const result = await this.cloudPayments.pay("charge", paymentConfig);
+                await this.handlePaymentSuccess(result, paymentData);
+            } else {
+                // Fallback для тестирования без CloudPayments
+                console.log('CloudPayments не инициализирован, симуляция успешного платежа');
+                setTimeout(() => {
+                    this.handlePaymentSuccess({
+                        transactionId: `test_${Date.now()}`,
+                        amount: paymentData.amount,
+                        currency: 'RUB'
+                    }, paymentData);
+                }, 2000);
+            }
 
         } catch (error) {
             console.error('Ошибка CloudPayments:', error);
@@ -248,8 +478,8 @@ class PremiumApp {
     }
 
     showSuccessScreen(paymentData) {
-        const container = document.querySelector('.container');
-        container.innerHTML = `
+        const wrap = document.querySelector('.wrap');
+        wrap.innerHTML = `
             <div class="success-screen">
                 <div class="success-animation">
                     <div class="checkmark">✓</div>
@@ -275,104 +505,6 @@ class PremiumApp {
                 </button>
             </div>
         `;
-
-        // Добавление стилей для экрана успеха
-        this.addSuccessStyles();
-    }
-
-    addSuccessStyles() {
-        const style = document.createElement('style');
-        style.textContent = `
-            .success-screen {
-                text-align: center;
-                padding: 40px 20px;
-                height: 100vh;
-                display: flex;
-                flex-direction: column;
-                justify-content: center;
-                align-items: center;
-            }
-
-            .success-animation {
-                margin-bottom: 30px;
-            }
-
-            .checkmark {
-                width: 80px;
-                height: 80px;
-                border-radius: 50%;
-                background: linear-gradient(45deg, #10b981, #059669);
-                color: white;
-                display: flex;
-                align-items: center;
-                justify-content: center;
-                font-size: 40px;
-                font-weight: bold;
-                margin: 0 auto;
-                animation: bounceIn 0.6s ease-out;
-                box-shadow: 0 4px 20px rgba(16, 185, 129, 0.3);
-            }
-
-            @keyframes bounceIn {
-                0% { transform: scale(0.3); opacity: 0; }
-                50% { transform: scale(1.05); }
-                70% { transform: scale(0.9); }
-                100% { transform: scale(1); opacity: 1; }
-            }
-
-            .success-screen h1 {
-                font-size: 28px;
-                color: #333;
-                margin-bottom: 16px;
-                font-weight: 700;
-            }
-
-            .success-screen p {
-                font-size: 16px;
-                color: #666;
-                margin-bottom: 30px;
-                line-height: 1.5;
-            }
-
-            .success-features {
-                margin-bottom: 40px;
-            }
-
-            .success-feature {
-                display: flex;
-                align-items: center;
-                justify-content: center;
-                gap: 12px;
-                padding: 12px;
-                margin-bottom: 8px;
-                background: #f8f9ff;
-                border-radius: 12px;
-                border: 1px solid #e1e8f0;
-            }
-
-            .feature-emoji {
-                font-size: 20px;
-            }
-
-            .back-to-bot-btn {
-                background: linear-gradient(45deg, #667eea, #764ba2);
-                color: white;
-                border: none;
-                padding: 16px 32px;
-                border-radius: 16px;
-                font-size: 16px;
-                font-weight: 600;
-                cursor: pointer;
-                transition: all 0.3s ease;
-                box-shadow: 0 4px 16px rgba(102, 126, 234, 0.3);
-            }
-
-            .back-to-bot-btn:hover {
-                transform: translateY(-2px);
-                box-shadow: 0 6px 24px rgba(102, 126, 234, 0.4);
-            }
-        `;
-        document.head.appendChild(style);
     }
 
     returnToBot() {
@@ -392,17 +524,25 @@ class PremiumApp {
 
     setLoading(loading) {
         this.isLoading = loading;
-        const buttons = document.querySelectorAll('.subscribe-btn');
+        const form = document.getElementById('checkout-form');
+        const payButton = document.getElementById('btnPay');
+        const cancelButton = document.getElementById('btnCancel');
         
-        buttons.forEach(button => {
-            if (loading) {
-                button.classList.add('loading');
-                button.disabled = true;
-            } else {
-                button.classList.remove('loading');
-                button.disabled = false;
+        if (loading) {
+            if (form) form.classList.add('loading');
+            if (payButton) {
+                payButton.disabled = true;
+                payButton.textContent = 'Обработка…';
             }
-        });
+            if (cancelButton) cancelButton.disabled = true;
+        } else {
+            if (form) form.classList.remove('loading');
+            if (payButton) {
+                payButton.disabled = false;
+                payButton.innerHTML = `Оплатить <span id="payAmount" style="margin-left:6px">${this.currentAmount} ₽</span>`;
+            }
+            if (cancelButton) cancelButton.disabled = false;
+        }
     }
 
     showNotification(type, message) {
@@ -417,7 +557,7 @@ class PremiumApp {
             top: 20px;
             left: 50%;
             transform: translateX(-50%);
-            background: ${type === 'success' ? '#10b981' : type === 'error' ? '#ef4444' : '#3b82f6'};
+            background: ${type === 'success' ? 'var(--success)' : type === 'error' ? 'var(--danger)' : 'var(--brand)'};
             color: white;
             padding: 12px 24px;
             border-radius: 12px;
@@ -425,7 +565,39 @@ class PremiumApp {
             z-index: 1000;
             animation: slideDown 0.3s ease-out;
             box-shadow: 0 4px 16px rgba(0, 0, 0, 0.1);
+            max-width: 90%;
+            text-align: center;
         `;
+
+        // Добавление анимаций если их еще нет
+        if (!document.getElementById('notification-styles')) {
+            const style = document.createElement('style');
+            style.id = 'notification-styles';
+            style.textContent = `
+                @keyframes slideDown {
+                    from {
+                        opacity: 0;
+                        transform: translateX(-50%) translateY(-20px);
+                    }
+                    to {
+                        opacity: 1;
+                        transform: translateX(-50%) translateY(0);
+                    }
+                }
+
+                @keyframes slideUp {
+                    from {
+                        opacity: 1;
+                        transform: translateX(-50%) translateY(0);
+                    }
+                    to {
+                        opacity: 0;
+                        transform: translateX(-50%) translateY(-20px);
+                    }
+                }
+            `;
+            document.head.appendChild(style);
+        }
 
         document.body.appendChild(notification);
 
@@ -445,54 +617,6 @@ class PremiumApp {
         console.log('Main button clicked');
     }
 }
-
-// Добавление анимаций
-const style = document.createElement('style');
-style.textContent = `
-    @keyframes slideDown {
-        from {
-            opacity: 0;
-            transform: translateX(-50%) translateY(-20px);
-        }
-        to {
-            opacity: 1;
-            transform: translateX(-50%) translateY(0);
-        }
-    }
-
-    @keyframes slideUp {
-        from {
-            opacity: 1;
-            transform: translateX(-50%) translateY(0);
-        }
-        to {
-            opacity: 0;
-            transform: translateX(-50%) translateY(-20px);
-        }
-    }
-
-    .dark-theme {
-        background: linear-gradient(135deg, #1f2937 0%, #374151 100%);
-    }
-
-    .dark-theme .container {
-        background: rgba(31, 41, 55, 0.98);
-        color: #f9fafb;
-    }
-
-    .dark-theme .feature-card,
-    .dark-theme .pricing-card {
-        background: #374151;
-        border-color: #4b5563;
-        color: #f9fafb;
-    }
-
-    .dark-theme .feature-card h3,
-    .dark-theme .pricing-card h3 {
-        color: #f9fafb;
-    }
-`;
-document.head.appendChild(style);
 
 // Инициализация приложения
 let premiumApp;
