@@ -1,79 +1,598 @@
 <!DOCTYPE html>
 <html lang="ru">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>FitGlow Mini Apps</title>
-    <style>
-        body {
-            font-family: 'Courier New', monospace;
-            background: linear-gradient(135deg, #1a1a2e 0%, #0f0f23 100%);
-            color: #00ff41;
-            margin: 0;
-            padding: 20px;
-            min-height: 100vh;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            justify-content: center;
-        }
-        .container {
-            text-align: center;
-            border: 2px solid #00ff41;
-            padding: 40px;
-            background: rgba(26, 26, 46, 0.8);
-            box-shadow: 0 0 20px #00ff4150;
-        }
-        h1 {
-            font-size: 32px;
-            margin-bottom: 20px;
-            text-shadow: 2px 2px 0 #ff00ff;
-        }
-        p {
-            font-size: 18px;
-            margin-bottom: 30px;
-            color: #ff00ff;
-        }
-        .app-link {
-            display: inline-block;
-            padding: 15px 30px;
-            background: repeating-linear-gradient(45deg, #1a1a2e 0px, #1a1a2e 4px, #16213e 4px, #16213e 8px);
-            border: 3px solid #00ff41;
-            color: #00ff41;
-            text-decoration: none;
-            font-size: 18px;
-            text-transform: uppercase;
-            letter-spacing: 2px;
-            transition: all 0.3s ease;
-            box-shadow: 4px 4px 0 #ff00ff;
-        }
-        .app-link:hover {
-            transform: translateY(-2px) translateX(-2px);
-            box-shadow: 6px 6px 0 #ffff00;
-            border-color: #ffff00;
-            color: #ffff00;
-        }
-        .status {
-            margin-top: 30px;
-            font-size: 14px;
-            color: #ffff00;
-        }
-    </style>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Оплата — Checkout</title>
+
+  <!-- Telegram WebApp -->
+  <script src="https://telegram.org/js/telegram-web-app.js"></script>
+  <!-- CloudPayments -->
+  <script src="https://widget.cloudpayments.ru/bundles/cloudpayments.js"></script>
+  <!-- Config -->
+  <script src="config.js"></script>
+
+  <!-- Google Fonts (as requested) -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Dela+Gothic+One&family=LXGW+Marker+Gothic&display=swap" rel="stylesheet">
+
+  <style>
+    /* ===== Design Tokens ===== */
+    :root {
+      --bg: #0f1115;
+      --panel: #141720;
+      --ink: #e9ecf1;
+      --muted: #a5adbb;
+      --brand: #6d7cff;
+      --success: #22c55e;
+      --danger: #ef4444;
+      --border: #222838;
+      --ring: rgba(109,124,255,0.6);
+      --shadow: 0 10px 30px rgba(0,0,0,0.35), 0 2px 8px rgba(0,0,0,0.25);
+      --radius: 18px;
+      --radius-sm: 12px;
+      --space: clamp(16px, 3.2vw, 26px);
+      --font-display: "Dela Gothic One", system-ui, -apple-system, Segoe UI, Roboto, sans-serif;
+      --font-alt: "LXGW Marker Gothic", system-ui, -apple-system, Segoe UI, Roboto, sans-serif;
+      --font-sans: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, "Noto Sans", Arial, "Apple Color Emoji","Segoe UI Emoji";
+    }
+
+    @media (prefers-color-scheme: light) {
+      :root {
+        --bg: #f7f8fb;
+        --panel: #ffffff;
+        --ink: #0d1320;
+        --muted: #5a6475;
+        --border: #e9edf4;
+        --shadow: 0 10px 30px rgba(10, 16, 34, 0.08), 0 2px 8px rgba(10, 16, 34, 0.06);
+      }
+    }
+
+    /* ===== Global ===== */
+    * { box-sizing: border-box; }
+    html, body { height: 100%; }
+    body {
+      margin: 0;
+      font-family: var(--font-sans);
+      color: var(--ink);
+      background: radial-gradient(1200px 800px at 85% -10%, rgba(109,124,255,0.18), transparent 60%),
+                  radial-gradient(900px 600px at -10% 120%, rgba(34,197,94,0.12), transparent 60%),
+                  var(--bg);
+      display: grid;
+      place-items: center;
+      padding: clamp(16px, 4vw, 40px);
+    }
+
+    .wrap {
+      width: min(1040px, 100%);
+      display: grid;
+      grid-template-columns: 1fr 0.9fr;
+      gap: var(--space);
+      align-items: start;
+    }
+
+    @media (max-width: 920px) {
+      .wrap { grid-template-columns: 1fr; }
+    }
+
+    .panel {
+      background: linear-gradient(180deg, rgba(255,255,255,0.02), rgba(255,255,255,0)) , var(--panel);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      box-shadow: var(--shadow);
+      overflow: clip;
+    }
+
+    .header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      padding: calc(var(--space) * 0.9) var(--space);
+      border-bottom: 1px solid var(--border);
+      background: linear-gradient(180deg, rgba(255,255,255,0.04), transparent);
+    }
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 14px;
+    }
+    .logo {
+      width: 38px; height: 38px;
+      border-radius: 12px;
+      display: grid; place-items: center;
+      background: linear-gradient(135deg, var(--brand), #8ea0ff);
+      box-shadow: inset 0 0 0 1px rgba(255,255,255,0.18);
+    }
+    .brand h1 {
+      font-family: var(--font-display);
+      font-size: clamp(18px, 2.4vw, 28px);
+      letter-spacing: 0.5px;
+      margin: 0;
+    }
+    .badge {
+      font: 12px/1.1 var(--font-alt);
+      color: var(--muted);
+      border: 1px dashed var(--border);
+      padding: 8px 10px;
+      border-radius: 10px;
+    }
+
+    .content { padding: var(--space); }
+
+    .section-title {
+      font-family: var(--font-display);
+      font-size: clamp(16px, 2vw, 22px);
+      margin: 0 0 14px;
+      letter-spacing: .4px;
+    }
+    .muted { color: var(--muted); }
+
+    /* ===== Form ===== */
+    form { display: grid; gap: 18px; }
+    .grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 14px;
+    }
+    @media (max-width: 620px) {
+      .grid { grid-template-columns: 1fr; }
+    }
+
+    label {
+      display: grid;
+      gap: 8px;
+      font-size: 13px;
+      color: var(--muted);
+      letter-spacing: .2px;
+    }
+    .field {
+      display: flex; align-items: center;
+      gap: 10px;
+      background: linear-gradient(180deg, rgba(255,255,255,.03), rgba(0,0,0,.02));
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      padding: 14px 14px;
+      transition: border-color .2s, box-shadow .2s, background .2s;
+    }
+    .field:focus-within {
+      border-color: var(--brand);
+      box-shadow: 0 0 0 6px var(--ring);
+      background: linear-gradient(180deg, rgba(255,255,255,.06), rgba(0,0,0,.02));
+    }
+    .field svg { flex: 0 0 auto; opacity: .9; }
+
+    input, select {
+      width: 100%;
+      border: 0;
+      outline: 0;
+      background: transparent;
+      color: var(--ink);
+      font: 500 15px/1.35 var(--font-sans);
+      letter-spacing: .2px;
+    }
+    input::placeholder { color: #8b94a5; }
+
+    .hint {
+      font-size: 12px;
+      color: var(--muted);
+      margin-top: 6px;
+      padding-left: 2px;
+    }
+
+    .row {
+      display: grid;
+      grid-template-columns: 2fr 1fr 1fr;
+      gap: 14px;
+    }
+    @media (max-width: 740px) {
+      .row { grid-template-columns: 1fr; }
+    }
+
+    .checkbox {
+      display: flex; gap: 10px; align-items: start;
+      font-size: 13px; color: var(--muted);
+    }
+    .checkbox input[type="checkbox"] {
+      width: 18px; height: 18px;
+      margin-top: 2px;
+      accent-color: var(--brand);
+    }
+
+    .actions {
+      display: flex; gap: 12px; align-items: center; justify-content: flex-end;
+      padding-top: 4px;
+    }
+    .btn {
+      --btn-bg: var(--brand);
+      --btn-bg-hover: #5a6af9;
+      --btn-ink: #fff;
+      border: 1px solid rgba(255,255,255,.12);
+      background: linear-gradient(180deg, var(--btn-bg), var(--btn-bg-hover));
+      color: var(--btn-ink);
+      padding: 14px 18px;
+      border-radius: 14px;
+      font: 700 15px/1 var(--font-sans);
+      letter-spacing: .3px;
+      cursor: pointer;
+      min-width: 160px;
+      box-shadow: 0 6px 18px rgba(109,124,255,.35);
+      transition: transform .06s ease, filter .2s ease, box-shadow .2s ease;
+    }
+    .btn:active { transform: translateY(1px); }
+    .btn.secondary {
+      --btn-bg: #1a1f2d;
+      --btn-bg-hover: #1e2433;
+      --btn-ink: var(--ink);
+      box-shadow: none;
+      border-color: var(--border);
+      min-width: 0;
+    }
+    .btn[disabled] {
+      filter: grayscale(.4) brightness(.85);
+      cursor: not-allowed;
+      box-shadow: none;
+    }
+
+    /* ===== Order Summary ===== */
+    .summary {
+      display: grid;
+      gap: 14px;
+    }
+    .card-inline {
+      display: grid;
+      grid-template-columns: 1fr auto;
+      gap: 8px;
+      align-items: center;
+      padding: 14px;
+      border: 1px dashed var(--border);
+      border-radius: 14px;
+    }
+    .price {
+      font-family: var(--font-alt);
+      font-size: clamp(22px, 3.2vw, 30px);
+      letter-spacing: .6px;
+    }
+    .kv { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+    .sep { height: 1px; background: var(--border); margin: 6px 0; }
+
+    .secure {
+      display: flex; align-items: center; gap: 10px; color: var(--muted);
+      font-size: 12px;
+    }
+
+    /* ===== Mini Card Preview ===== */
+    .card-preview {
+      position: relative;
+      height: 200px;
+      border-radius: 18px;
+      border: 1px solid var(--border);
+      background:
+        radial-gradient(260px 140px at 85% 20%, rgba(109,124,255,.28), transparent 60%),
+        radial-gradient(260px 140px at 20% 100%, rgba(34,197,94,.25), transparent 60%),
+        linear-gradient(180deg, #151a28, #0f1422);
+      box-shadow: var(--shadow);
+      padding: 20px;
+      display: grid; align-content: space-between;
+    }
+    .card-chip {
+      width: 44px; height: 32px; border-radius: 6px;
+      background: linear-gradient(180deg, #edc679, #b48a3d);
+      box-shadow: inset 0 0 0 1px rgba(0,0,0,.25), 0 6px 14px rgba(0,0,0,.25);
+    }
+    .card-num { font: 700 20px/1.3 var(--font-sans); letter-spacing: 2px; }
+    .card-meta { display: flex; justify-content: space-between; gap: 10px; font-size: 12px; color: var(--muted); }
+
+    /* ===== Utility ===== */
+    .sr-only {
+      position: absolute !important;
+      height: 1px; width: 1px; overflow: hidden;
+      clip: rect(1px, 1px, 1px, 1px);
+      white-space: nowrap;
+    }
+
+    /* ===== Loading States ===== */
+    .loading {
+      opacity: 0.7;
+      pointer-events: none;
+      position: relative;
+    }
+
+    .loading::after {
+      content: 'Обработка...';
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      font-size: 12px;
+      color: var(--brand);
+      font-weight: 600;
+      z-index: 10;
+    }
+
+    /* ===== Success Screen ===== */
+    .success-screen {
+      text-align: center;
+      padding: 40px 20px;
+      height: 100vh;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      align-items: center;
+      background: var(--bg);
+    }
+
+    .success-animation {
+      margin-bottom: 24px;
+    }
+
+    .checkmark {
+      width: 80px;
+      height: 80px;
+      border-radius: 50%;
+      background: linear-gradient(45deg, var(--success), #16a34a);
+      color: white;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 40px;
+      font-weight: bold;
+      margin: 0 auto;
+      animation: bounceIn 0.6s ease-out;
+      box-shadow: 0 4px 20px rgba(34, 197, 94, 0.3);
+    }
+
+    @keyframes bounceIn {
+      0% { transform: scale(0.3); opacity: 0; }
+      50% { transform: scale(1.05); }
+      70% { transform: scale(0.9); }
+      100% { transform: scale(1); opacity: 1; }
+    }
+
+    .success-screen h1 {
+      font-family: var(--font-display);
+      font-size: 28px;
+      color: var(--ink);
+      margin-bottom: 16px;
+      font-weight: 400;
+    }
+
+    .success-screen p {
+      font-size: 16px;
+      color: var(--muted);
+      margin-bottom: 30px;
+      line-height: 1.5;
+    }
+
+    .success-features {
+      margin-bottom: 40px;
+    }
+
+    .success-feature {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 12px;
+      padding: 12px;
+      margin-bottom: 8px;
+      background: var(--panel);
+      border-radius: 12px;
+      border: 1px solid var(--border);
+    }
+
+    .feature-emoji {
+      font-size: 20px;
+    }
+
+    .back-to-bot-btn {
+      background: linear-gradient(45deg, var(--brand), #8ea0ff);
+      color: white;
+      border: none;
+      padding: 16px 32px;
+      border-radius: 16px;
+      font-size: 16px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.3s ease;
+      box-shadow: 0 4px 16px rgba(109, 124, 255, 0.3);
+    }
+
+    .back-to-bot-btn:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 6px 24px rgba(109, 124, 255, 0.4);
+    }
+  </style>
 </head>
 <body>
-    <div class="container">
-        <h1>🎮 FitGlow Mini Apps</h1>
-        <p>Добро пожаловать в пиксельный мир фитнеса!</p>
-        
-        <a href="premium/index.html" class="app-link">
-            ⭐ Premium App
-        </a>
-        
-        <div class="status">
-            <p>✅ GitHub Pages активен</p>
-            <p>🔗 URL: https://gobidon3423-svg.github.io/miniapp/</p>
-            <p>🎯 Premium App: /premium/index.html</p>
+  <div class="wrap">
+    <!-- Left: Form -->
+    <section class="panel" aria-labelledby="checkout-title">
+      <header class="header">
+        <div class="brand">
+          <div class="logo" aria-hidden="true">
+            <!-- Spark icon -->
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+              <path d="M12 2l1.8 5.4L19 9l-5.2 1.6L12 16l-1.8-5.4L5 9l5.2-1.6L12 2z" fill="white" opacity=".9"/>
+            </svg>
+          </div>
+          <h1 id="checkout-title">Оплата</h1>
         </div>
-    </div>
+        <span class="badge">Защищённый платёж</span>
+      </header>
+
+      <div class="content">
+        <p class="muted" style="margin-top:-4px;margin-bottom:22px">Заполните данные карты и адрес плательщика. Ваши данные шифруются.</p>
+
+        <form id="checkout-form" novalidate>
+          <div class="grid">
+            <label>
+              Email для чека
+              <div class="field">
+                <!-- mail icon -->
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                  <path d="M4 6h16a2 2 0 0 1 2 2v.5l-10 6.25L2 8.5V8a2 2 0 0 1 2-2z" stroke="currentColor" stroke-width="1.4"/>
+                  <path d="M22 9.5v8.5a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V9.5" stroke="currentColor" stroke-width="1.4"/>
+                </svg>
+                <input type="email" name="email" placeholder="you@example.com" required autocomplete="email" />
+              </div>
+            </label>
+
+            <label>
+              Имя на карте
+              <div class="field">
+                <!-- user icon -->
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                  <circle cx="12" cy="8" r="4.2" stroke="currentColor" stroke-width="1.4"/>
+                  <path d="M20 20a8 8 0 0 0-16 0" stroke="currentColor" stroke-width="1.4"/>
+                </svg>
+                <input type="text" name="cardName" placeholder="IVAN IVANOV" required autocomplete="cc-name" />
+              </div>
+            </label>
+          </div>
+
+          <div class="row">
+            <label>
+              Номер карты
+              <div class="field">
+                <!-- card icon -->
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                  <rect x="3" y="5" width="18" height="14" rx="2.5" stroke="currentColor" stroke-width="1.4"/>
+                  <path d="M3 10h18" stroke="currentColor" stroke-width="1.4"/>
+                </svg>
+                <input id="cardNumber" inputmode="numeric" autocomplete="cc-number"
+                       placeholder="0000 0000 0000 0000" maxlength="19" required />
+              </div>
+              <div class="hint">Поддерживаются Visa, Mastercard, МИР</div>
+            </label>
+
+            <label>
+              Срок (ММ/ГГ)
+              <div class="field">
+                <!-- calendar icon -->
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                  <rect x="4" y="6" width="16" height="14" rx="2.5" stroke="currentColor" stroke-width="1.4"/>
+                  <path d="M8 3v6M16 3v6M4 10h16" stroke="currentColor" stroke-width="1.4"/>
+                </svg>
+                <input id="cardExp" inputmode="numeric" autocomplete="cc-exp"
+                       placeholder="MM/YY" maxlength="5" required />
+              </div>
+            </label>
+
+            <label>
+              CVC
+              <div class="field">
+                <!-- lock icon -->
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                  <rect x="4" y="10" width="16" height="10" rx="2.5" stroke="currentColor" stroke-width="1.4"/>
+                  <path d="M8 10V7a4 4 0 0 1 8 0v3" stroke="currentColor" stroke-width="1.4"/>
+                </svg>
+                <input id="cardCvc" inputmode="numeric" autocomplete="cc-csc"
+                       placeholder="123" maxlength="4" required />
+              </div>
+            </label>
+          </div>
+
+          <h2 class="section-title" style="margin-top:6px">Адрес плательщика</h2>
+          <div class="grid">
+            <label>
+              Страна
+              <div class="field">
+                <select name="country" required>
+                  <option value="" disabled selected>Выберите страну</option>
+                  <option>Россия</option>
+                  <option>Казахстан</option>
+                  <option>Беларусь</option>
+                  <option>Армения</option>
+                  <option>Грузия</option>
+                  <option>Украина</option>
+                  <option>США</option>
+                  <option>Германия</option>
+                  <option>Нидерланды</option>
+                  <option>Франция</option>
+                </select>
+              </div>
+            </label>
+
+            <label>
+              Город
+              <div class="field">
+                <input type="text" name="city" placeholder="Москва" required autocomplete="address-level2" />
+              </div>
+            </label>
+          </div>
+
+          <label>
+            Адрес (улица, дом, квартира)
+            <div class="field">
+              <input type="text" name="address" placeholder="ул. Тверская, д. 1, кв. 1" required autocomplete="address-line1" />
+            </div>
+          </label>
+
+          <label>
+            Индекс
+            <div class="field">
+              <input type="text" name="zip" placeholder="123456" required autocomplete="postal-code" />
+            </div>
+          </label>
+
+          <label class="checkbox">
+            <input type="checkbox" name="terms" required />
+            Я соглашаюсь с условиями оферты и политикой конфиденциальности.
+          </label>
+
+          <div class="actions">
+            <button class="btn secondary" type="button" id="btnCancel">Отмена</button>
+            <button class="btn" type="submit" id="btnPay">
+              Оплатить <span id="payAmount" aria-live="polite" style="margin-left:6px">2 490 ₽</span>
+            </button>
+          </div>
+        </form>
+      </div>
+    </section>
+
+    <!-- Right: Summary -->
+    <aside class="panel" aria-labelledby="summary-title">
+      <header class="header">
+        <h2 class="section-title" id="summary-title">Сводка заказа</h2>
+        <span class="badge">Готово к оплате</span>
+      </header>
+
+      <div class="content summary">
+        <div class="card-preview" aria-hidden="true">
+          <div class="card-chip"></div>
+          <div class="card-num" id="previewNum">0000 0000 0000 0000</div>
+          <div class="card-meta">
+            <span id="previewName">CARDHOLDER</span>
+            <span id="previewExp">MM/YY</span>
+          </div>
+        </div>
+
+        <div class="card-inline">
+          <div>
+            <div class="muted">Тариф</div>
+            <div style="font-weight:700" id="planName">PRO подписка, 1 месяц</div>
+          </div>
+          <div class="price" id="planPrice">2 490 ₽</div>
+        </div>
+
+        <div class="kv"><span class="muted">Подытог</span><strong id="subtotal">2 490 ₽</strong></div>
+        <div class="kv"><span class="muted">Комиссия</span><strong>0 ₽</strong></div>
+        <div class="sep"></div>
+        <div class="kv" aria-live="polite"><span style="font-weight:700">Итого</span><strong id="total">2 490 ₽</strong></div>
+
+        <div class="secure">
+          <!-- shield icon -->
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+            <path d="M12 3l7 3v6c0 5-3.5 9-7 9s-7-4-7-9V6l7-3z" stroke="currentColor" stroke-width="1.4"/>
+            <path d="M8.5 12.5l2.4 2.4 4.6-5.4" stroke="currentColor" stroke-width="1.6"/>
+          </svg>
+          Данные шифруются по стандарту PCI-DSS. 3-D Secure поддерживается.
+        </div>
+      </div>
+    </aside>
+  </div>
+
+  <script src="script.js"></script>
 </body>
 </html>
