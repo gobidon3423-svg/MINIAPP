@@ -1,0 +1,108 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>FitGlow Premium</title>
+    <script src="https://telegram.org/js/telegram-web-app.js"></script>
+    <script src="https://widget.cloudpayments.ru/bundles/cloudpayments.js"></script>
+    <script src="config.js"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=VT323&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <div class="container">
+        <!-- Header -->
+        <div class="header">
+            <div class="premium-badge">
+                <span class="star-icon">⭐</span>
+                <h1>FitGlow Premium</h1>
+            </div>
+            <p class="subtitle">Раскрой весь потенциал своего фитнеса</p>
+        </div>
+
+        <!-- Features Section -->
+        <div class="features-section">
+            <h2>✨ Что получишь с Premium</h2>
+            <div class="features-grid">
+                <div class="feature-card">
+                    <div class="feature-icon">🔓</div>
+                    <h3>Безлимитные тренировки</h3>
+                    <p>Полный доступ ко всем упражнениям и программам</p>
+                </div>
+                <div class="feature-card">
+                    <div class="feature-icon">👑</div>
+                    <h3>Эксклюзивные программы</h3>
+                    <p>Уникальные тренировки только для Premium пользователей</p>
+                </div>
+                <div class="feature-card">
+                    <div class="feature-icon">📊</div>
+                    <h3>Расширенная аналитика</h3>
+                    <p>Детальная статистика и персональные рекомендации</p>
+                </div>
+                <div class="feature-card">
+                    <div class="feature-icon">🎯</div>
+                    <h3>Персональные планы</h3>
+                    <p>ИИ создает индивидуальные программы под тебя</p>
+                </div>
+                <div class="feature-card">
+                    <div class="feature-icon">🎰</div>
+                    <h3>Бонусы в рулетке</h3>
+                    <p>+2 дополнительных вращения каждый день</p>
+                </div>
+                <div class="feature-card">
+                    <div class="feature-icon">💎</div>
+                    <h3>Еженедельные призы</h3>
+                    <p>Эксклюзивные награды и бонусы</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- Pricing Section -->
+        <div class="pricing-section">
+            <h2>💳 Выбери свой план</h2>
+            <div class="pricing-cards">
+                <div class="pricing-card">
+                    <div class="plan-header">
+                        <h3>Месячный</h3>
+                        <div class="price">
+                            <span class="amount">299</span>
+                            <span class="currency">₽</span>
+                        </div>
+                        <p class="period">за месяц</p>
+                    </div>
+                    <button class="subscribe-btn monthly" data-plan="monthly" data-amount="299">
+                        Подписаться
+                    </button>
+                </div>
+
+                <div class="pricing-card popular">
+                    <div class="popular-badge">Выгодно!</div>
+                    <div class="plan-header">
+                        <h3>Годовой</h3>
+                        <div class="price">
+                            <span class="amount">2399</span>
+                            <span class="currency">₽</span>
+                        </div>
+                        <p class="period">за год</p>
+                        <div class="discount">-20% экономии</div>
+                    </div>
+                    <button class="subscribe-btn yearly" data-plan="yearly" data-amount="2399">
+                        Подписаться
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Footer -->
+        <div class="footer">
+            <p class="security-text">🔒 Безопасная оплата через Telegram</p>
+            <p class="support-text">📞 Поддержка 24/7 • 🔄 Отмена в любое время</p>
+        </div>
+    </div>
+
+    <script src="script.js"></script>
+</body>
+</html>
